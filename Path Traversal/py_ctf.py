@@ -56,30 +56,34 @@ def golem():
     return render_template_string(template)
 
 
-@app.route("/", methods=["GET"])
-def index():
-    return render_template("main.html")
-
-
 @app.route('/article', methods=['GET'])
 def article():
-
+    base_path = '/home/golem/articles'
     error = 0
 
-    if 'name' in request.args:
-        page = request.args.get('name')
-    else:
-        page = 'article'
+    page = request.args.get('name', 'article')
 
-    if page.find('flag') >= 0:
+    # Whitelist valid filenames (no path traversal)
+    allowed_files = {'article.txt', 'notallowed.txt'}  # Add safe filenames here
+
+    # Only allow .txt files, no subdirectories, no traversal
+    if '..' in page or '/' in page or '\\' in page or not page.endswith('.txt'):
         page = 'notallowed.txt'
 
+    # Optional: full secure path check
+    full_path = os.path.abspath(os.path.join(base_path, page))
+    if not full_path.startswith(base_path):
+        page = 'notallowed.txt'
+        full_path = os.path.join(base_path, page)
+
     try:
-        template = open('/home/golem/articles/{}'.format(page)).read()
+        with open(full_path) as f:
+            template = f.read()
     except Exception as e:
-        template = e
+        template = str(e)
 
     return render_template('article.html', template=template)
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=False)
